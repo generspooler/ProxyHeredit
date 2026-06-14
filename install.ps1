@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Install proxy-env-bridge: inject Windows system proxy into CLI env vars.
+    Install ProxyHeredit: inject Windows system proxy into CLI env vars.
 .DESCRIPTION
     1. Append profile.ps1 to your PowerShell $PROFILE (creates it if needed)
     2. Set HTTP_PROXY / HTTPS_PROXY / NO_PROXY as User-level permanent env vars
@@ -17,11 +17,11 @@ if (-not (Test-Path $profileDir)) {
 }
 
 $content = Get-Content $profileScript -Raw
-if (-not (Test-Path $PROFILE) -or (Get-Content $PROFILE -Raw) -notmatch 'proxy-env-bridge') {
+if (-not (Test-Path $PROFILE) -or (Get-Content $PROFILE -Raw) -notmatch 'ProxyHeredit') {
     Add-Content $PROFILE "`n$content" -Encoding UTF8
     Write-Host "[OK] Appended profile.ps1 to $PROFILE" -ForegroundColor Green
 } else {
-    Write-Host "[SKIP] proxy-env-bridge already in $PROFILE" -ForegroundColor Yellow
+    Write-Host "[SKIP] ProxyHeredit already in $PROFILE" -ForegroundColor Yellow
 }
 
 # ── Step 2: Set User-level permanent env vars ──
@@ -44,5 +44,5 @@ if ($proxy -and $proxy.ProxyEnable -eq 1 -and $proxy.ProxyServer) {
 
 # ── Step 3: Apply to current session ──
 . $PROFILE
-Write-Host "[OK] proxy-env-bridge installed. Active in this session." -ForegroundColor Green
+Write-Host "[OK] ProxyHeredit installed. Active in this session." -ForegroundColor Green
 Write-Host "`nVerify: curl.exe -s -o NUL -w `"HTTP %{http_code} (%{time_total}s)`" https://www.google.com"

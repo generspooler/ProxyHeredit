@@ -1,5 +1,5 @@
 # ============================================
-# proxy-env-bridge
+# ProxyHeredit
 # Bridge Windows system proxy to CLI env vars
 # ============================================
 # Reads the Windows registry system proxy and injects it into the
