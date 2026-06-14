@@ -2,40 +2,54 @@
 
 **English** | [中文](#zh)
 
-Auto-inherit system proxy for CLI tools — solves "system proxy is on but CLI tools can't reach the internet" for opencode, Claude Code, npm, Go, pip, and more.
+Auto-inherit system proxy for CLI tools across **Windows, macOS, and Linux** — solves "system proxy is on but CLI tools can't reach the internet" for opencode, Claude Code, npm, Go, pip, and more.
 
 ## Problem
 
-Windows system proxy (Internet Options → Connections → LAN settings) only works for **browsers** and a few native applications.  
-CLI tools like Node.js, Go, and Python **don't read registry proxy settings** — they only respect `HTTP_PROXY` / `HTTPS_PROXY` environment variables.
+System proxy settings (set via OS network preferences) only work for **browsers** and a few native applications.  
+CLI tools like Node.js, Go, and Python **don't read system proxy settings** — they only respect `HTTP_PROXY` / `HTTPS_PROXY` environment variables.
 
 | Tool | System proxy on | Can connect? |
 |------|----------------|-------------|
 | Browser / curl | ✅ | ✅ |
-| opencode / Claude Code | ❌ doesn't read registry | ❌ |
-| npm / yarn / pip | ❌ doesn't read registry | ❌ |
+| opencode / Claude Code | ❌ doesn't read OS proxy | ❌ |
+| npm / yarn / pip | ❌ doesn't read OS proxy | ❌ |
 
 ## How it works
 
-`ProxyHeredit` runs automatically when PowerShell starts:
+`ProxyHeredit` runs automatically on every terminal launch:
 
-1. Reads system proxy config from registry `HKCU:\...\Internet Settings`
-2. Injects proxy address into `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` for the current session
-3. Automatically follows when proxy is disabled or port changes — **zero maintenance**
+1. **Windows**: Reads system proxy from registry `HKCU:\...\Internet Settings`
+2. **macOS**: Reads system proxy via `scutil --proxy`
+3. **Linux**: Reads system proxy via GNOME `gsettings` or KDE `kreadconfig5`
+4. Injects proxy address into `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` for the current session
+5. Automatically follows when proxy is disabled or port changes — **zero maintenance**
 
 ```
-Registry (System Proxy)  ──→  profile.ps1  ──→  $env:HTTP_PROXY / HTTPS_PROXY
-                              (on every terminal launch)    (visible to CLI tools)
+OS System Proxy  ──→  profile.ps1 / profile.sh  ──→  HTTP_PROXY / HTTPS_PROXY
+                      (on every terminal launch)      (visible to CLI tools)
 ```
 
 ## Installation
+
+### Windows (PowerShell)
 
 ```powershell
 # Run from the project directory
 .\install.ps1
 ```
 
+### macOS / Linux (bash/zsh)
+
+```bash
+# Run from the project directory
+chmod +x install.sh
+./install.sh
+```
+
 ## Verification
+
+### Windows
 
 ```powershell
 # Check if env vars are injected
@@ -47,37 +61,50 @@ curl.exe -s -o NUL -w "HTTP %{http_code} (%{time_total}s)" https://www.google.co
 # Expected: HTTP 302 (0.3s)
 ```
 
+### macOS / Linux
+
+```bash
+# Check if env vars are injected
+echo "$HTTP_PROXY"
+echo "$HTTPS_PROXY"
+
+# Test proxy connectivity
+curl -s -o /dev/null -w "HTTP %{http_code} (%{time_total}s)" https://www.google.com
+# Expected: HTTP 302 (0.3s)
+```
+
 Verify opencode works through proxy:
 
-```powershell
-# Confirm opencode can access external APIs
+```bash
 opencode
 ```
 
 ## Uninstall
 
+### Windows (PowerShell)
+
 ```powershell
-# Run from the project directory
 .\uninstall.ps1
 ```
 
-Manual uninstall:
+Manual:
 
 ```powershell
-# 1. Remove ProxyHeredit code from your PowerShell Profile
-$profileContent = Get-Content $PROFILE -Raw
-$profileContent = $profileContent -replace '(?s)# ==+[\s\S]*?# ==+.*?(?=\n# ==|\Z)', ''
-Set-Content $PROFILE $profileContent -Encoding UTF8
-
-# 2. Delete User-level environment variables
+# Remove ProxyHeredit from $PROFILE, then:
 [System.Environment]::SetEnvironmentVariable("HTTP_PROXY", $null, "User")
 [System.Environment]::SetEnvironmentVariable("HTTPS_PROXY", $null, "User")
 [System.Environment]::SetEnvironmentVariable("NO_PROXY", $null, "User")
 ```
 
+### macOS / Linux
+
+```bash
+./uninstall.sh
+```
+
 ## Compatible Tools
 
-Any tool that reads `HTTP_PROXY` / `HTTPS_PROXY` works automatically, including:
+Any tool that reads `HTTP_PROXY` / `HTTPS_PROXY` works automatically. Supports all platforms:
 
 - **opencode** — AI coding assistant
 - **Claude Code** — Anthropic official CLI
@@ -92,9 +119,12 @@ Any tool that reads `HTTP_PROXY` / `HTTPS_PROXY` works automatically, including:
 ```
 ProxyHeredit/
 ├── README.md          # This file
-├── profile.ps1        # Core PowerShell Profile script
-├── install.ps1        # One-click install
-└── uninstall.ps1      # One-click uninstall
+├── profile.ps1        # PowerShell profile script (Windows)
+├── profile.sh         # Shell profile script (macOS / Linux)
+├── install.ps1        # Windows installer
+├── install.sh         # macOS / Linux installer
+├── uninstall.ps1      # Windows uninstaller
+└── uninstall.sh       # macOS / Linux uninstaller
 ```
 
 ## License
@@ -105,77 +135,85 @@ MIT
 
 <h2 id="zh">ProxyHeredit <span style="font-size:0.6em;font-weight:normal">中文</span></h2>
 
-让 CLI 工具自动继承系统代理设置——解决 opencode、Claude Code、npm、Go、pip 等工具"有系统代理但走不通"的问题。
+让 CLI 工具自动继承系统代理设置——支持 **Windows、macOS、Linux**，解决 opencode、Claude Code、npm、Go、pip 等工具"有系统代理但走不通"的问题。
 
 ## 问题
 
-Windows 的系统代理（Internet Options → 连接 → 局域网设置）只对**浏览器**和部分原生应用生效。  
-Node.js、Go、Python 等 CLI 工具**不读取注册表代理设置**，它们只认 `HTTP_PROXY` / `HTTPS_PROXY` 环境变量。
+系统代理设置（通过 OS 网络偏好设置配置）只对**浏览器**和部分原生应用生效。  
+Node.js、Go、Python 等 CLI 工具**不读取系统代理设置**，它们只认 `HTTP_PROXY` / `HTTPS_PROXY` 环境变量。
 
 | 工具 | 系统代理已开 | 能否联网 |
 |------|------------|---------|
 | 浏览器 / curl | ✅ | ✅ |
-| opencode / Claude Code | ❌ 不读取注册表 | ❌ |
-| npm / yarn / pip | ❌ 不读取注册表 | ❌ |
+| opencode / Claude Code | ❌ 不读取系统代理 | ❌ |
+| npm / yarn / pip | ❌ 不读取系统代理 | ❌ |
 
 ## 原理
 
-`ProxyHeredit` 在 PowerShell 启动时自动执行：
+`ProxyHeredit` 在每次终端启动时自动执行：
 
-1. 读取注册表 `HKCU:\...\Internet Settings` 中的系统代理配置
-2. 将代理地址注入当前会话的 `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` 环境变量
-3. 代理关闭或端口变化时自动跟随，**零维护**
+1. **Windows**: 读取注册表 `HKCU:\...\Internet Settings`
+2. **macOS**: 通过 `scutil --proxy` 读取系统代理
+3. **Linux**: 通过 GNOME `gsettings` 或 KDE `kreadconfig5` 读取系统代理
+4. 将代理地址注入当前会话的 `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` 环境变量
+5. 代理关闭或端口变化时自动跟随，**零维护**
 
 ```
-注册表 (系统代理)  ──→  profile.ps1  ──→  $env:HTTP_PROXY / HTTPS_PROXY
-                       (每次终端启动)         (对 CLI 工具可见)
+系统代理  ──→  profile.ps1 / profile.sh  ──→  HTTP_PROXY / HTTPS_PROXY
+               (每次终端启动)                 (对 CLI 工具可见)
 ```
 
 ## 安装
 
+### Windows (PowerShell)
+
 ```powershell
-# 从项目目录执行
 .\install.ps1
+```
+
+### macOS / Linux (bash/zsh)
+
+```bash
+chmod +x install.sh
+./install.sh
 ```
 
 ## 验证
 
+### Windows
+
 ```powershell
-# 检查环境变量是否注入
 $env:HTTP_PROXY
 $env:HTTPS_PROXY
-
-# 测试代理连通性
 curl.exe -s -o NUL -w "HTTP %{http_code} (%{time_total}s)" https://www.google.com
-# 期望输出: HTTP 302 (0.3s)
 ```
 
-验证 opencode 走代理：
+### macOS / Linux
 
-```powershell
-# 确认 opencode 能正常访问外部 API
+```bash
+echo "$HTTP_PROXY"
+echo "$HTTPS_PROXY"
+curl -s -o /dev/null -w "HTTP %{http_code} (%{time_total}s)" https://www.google.com
+```
+
+验证 opencode：
+
+```bash
 opencode
 ```
 
 ## 卸载
 
+### Windows (PowerShell)
+
 ```powershell
-# 从项目目录执行
 .\uninstall.ps1
 ```
 
-手动卸载：
+### macOS / Linux
 
-```powershell
-# 1. 从 Profile 中移除 ProxyHeredit 代码
-$profileContent = Get-Content $PROFILE -Raw
-$profileContent = $profileContent -replace '(?s)# ==+[\s\S]*?# ==+.*?(?=\n# ==|\Z)', ''
-Set-Content $PROFILE $profileContent -Encoding UTF8
-
-# 2. 删除 User 级环境变量
-[System.Environment]::SetEnvironmentVariable("HTTP_PROXY", $null, "User")
-[System.Environment]::SetEnvironmentVariable("HTTPS_PROXY", $null, "User")
-[System.Environment]::SetEnvironmentVariable("NO_PROXY", $null, "User")
+```bash
+./uninstall.sh
 ```
 
 ## 适配的工具
@@ -195,9 +233,12 @@ Set-Content $PROFILE $profileContent -Encoding UTF8
 ```
 ProxyHeredit/
 ├── README.md          # 本文件
-├── profile.ps1        # 核心 PowerShell Profile 脚本
-├── install.ps1        # 一键安装
-└── uninstall.ps1      # 一键卸载
+├── profile.ps1        # PowerShell 配置脚本 (Windows)
+├── profile.sh         # Shell 配置脚本 (macOS / Linux)
+├── install.ps1        # Windows 安装脚本
+├── install.sh         # macOS / Linux 安装脚本
+├── uninstall.ps1      # Windows 卸载脚本
+└── uninstall.sh       # macOS / Linux 卸载脚本
 ```
 
 ## 许可
