@@ -1,11 +1,5 @@
-<#
-.SYNOPSIS
-    Install ProxyHeredit on macOS/Linux: inject system proxy into shell env vars.
-.DESCRIPTION
-    1. Detect shell (bash/zsh) and locate the appropriate rc file
-    2. Append sourcing of profile.sh to the rc file
-    3. Source it immediately for the current session
-#>
+# ProxyHeredit install script
+# Detect shell (bash/zsh), locate rc file, and append sourcing of profile.sh
 
 _heredit_detect_rc() {
   case "$SHELL" in
@@ -73,6 +67,8 @@ install() {
     . "$profile_script"
     echo "[OK] ProxyHeredit active in this session"
   fi
+
+  . "$rc_file" && echo "[OK] Reloaded $rc_file"
 }
 
 install
