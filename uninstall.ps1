@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-    Uninstall ProxyHeredit: remove from Profile and User env vars.
+    Uninstall ProxyHeredit: remove from Profile and clean up env vars.
 .DESCRIPTION
     1. Remove ProxyHeredit code from PowerShell $PROFILE
-    2. Delete HTTP_PROXY / HTTPS_PROXY / NO_PROXY User-level permanent env vars
+    2. Clear any legacy HTTP_PROXY / HTTPS_PROXY / NO_PROXY User-level env vars
     3. Clean up current session env vars
 #>
 
@@ -28,11 +28,13 @@ if (Test-Path $PROFILE) {
     Write-Host "[SKIP] Profile does not exist" -ForegroundColor Yellow
 }
 
-# ── Step 2: Remove User-level permanent env vars ──
+# ── Step 2: Clear any legacy permanent User env vars ──
+# Older install.ps1 versions froze HTTP_PROXY/HTTPS_PROXY/NO_PROXY into the
+# User scope; remove them if present (no-op for current installs).
 [System.Environment]::SetEnvironmentVariable("HTTP_PROXY", $null, "User")
 [System.Environment]::SetEnvironmentVariable("HTTPS_PROXY", $null, "User")
 [System.Environment]::SetEnvironmentVariable("NO_PROXY", $null, "User")
-Write-Host "[OK] Removed User env vars: HTTP_PROXY, HTTPS_PROXY, NO_PROXY" -ForegroundColor Green
+Write-Host "[OK] Cleared any legacy User env vars: HTTP_PROXY, HTTPS_PROXY, NO_PROXY" -ForegroundColor Green
 
 # ── Step 3: Clean up current session ──
 Remove-Item Env:HTTP_PROXY -ErrorAction SilentlyContinue

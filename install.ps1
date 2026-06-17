@@ -3,8 +3,11 @@
     Install ProxyHeredit: inject Windows system proxy into CLI env vars.
 .DESCRIPTION
     1. Append profile.ps1 to your PowerShell $PROFILE (creates it if needed)
-    2. Set HTTP_PROXY / HTTPS_PROXY / NO_PROXY as User-level permanent env vars
-    3. Dot-source the profile immediately for current session
+    2. Dot-source the profile immediately for current session
+
+    Intentionally does NOT write permanent User-level env vars: those would
+    freeze the proxy at install time and leak a stale value to non-terminal
+    apps. The proxy is read fresh from the registry on every shell launch.
 #>
 
 $scriptDir = Split-Path $PSCommandPath -Parent
@@ -24,25 +27,7 @@ if (-not (Test-Path $PROFILE) -or (Get-Content $PROFILE -Raw) -notmatch 'ProxyHe
     Write-Host "[SKIP] ProxyHeredit already in $PROFILE" -ForegroundColor Yellow
 }
 
-# ── Step 2: Set User-level permanent env vars ──
-$proxy = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -ErrorAction SilentlyContinue
-if ($proxy -and $proxy.ProxyEnable -eq 1 -and $proxy.ProxyServer) {
-    $proxyUrl = "http://$($proxy.ProxyServer)"
-
-    [System.Environment]::SetEnvironmentVariable("HTTP_PROXY", $proxyUrl, "User")
-    [System.Environment]::SetEnvironmentVariable("HTTPS_PROXY", $proxyUrl, "User")
-
-    if ($proxy.ProxyOverride) {
-        $noProxy = $proxy.ProxyOverride -replace '<local>', '' -split ';' | Where-Object { $_.Trim() } | ForEach-Object { $_.Trim() }
-        [System.Environment]::SetEnvironmentVariable("NO_PROXY", ($noProxy -join ','), "User")
-    }
-
-    Write-Host "[OK] Set User env vars: HTTP_PROXY=$proxyUrl" -ForegroundColor Green
-} else {
-    Write-Host "[WARN] System proxy is disabled. Skipping permanent env vars." -ForegroundColor Yellow
-}
-
-# ── Step 3: Apply to current session ──
+# ── Step 2: Apply to current session ──
 . $PROFILE
 Write-Host "[OK] ProxyHeredit installed. Active in this session." -ForegroundColor Green
 Write-Host "`nVerify: curl.exe -s -o NUL -w `"HTTP %{http_code} (%{time_total}s)`" https://www.google.com"
