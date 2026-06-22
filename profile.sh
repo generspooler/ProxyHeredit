@@ -129,6 +129,23 @@ _heredit_get_no_proxy() {
   esac
 }
 
+_heredit_check_proxy() {
+  local proxy_url="$1"
+  local host port
+
+  host="${proxy_url#*://}"
+  host="${host%:*}"
+  port="${proxy_url##*:}"
+
+  [ -z "$host" ] || [ -z "$port" ] && return 1
+
+  if command -v nc >/dev/null 2>&1; then
+    nc -z -w 2 "$host" "$port" 2>/dev/null
+  else
+    return 0
+  fi
+}
+
 _heredit_setup() {
   local cached_info=""
   if [ "$(uname -s)" = "Darwin" ]; then
@@ -136,7 +153,7 @@ _heredit_setup() {
   fi
   local proxy_url
   proxy_url=$(_heredit_get_proxy_url "$cached_info")
-  if [ -n "$proxy_url" ]; then
+  if [ -n "$proxy_url" ] && _heredit_check_proxy "$proxy_url"; then
     export HTTP_PROXY="$proxy_url"
     export HTTPS_PROXY="$proxy_url"
     export http_proxy="$proxy_url"

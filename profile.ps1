@@ -7,6 +7,21 @@
 # npm, etc.) that do NOT read the registry automatically inherit it.
 # Runs on every PowerShell startup.
 
+function Test-ProxyReachable {
+    param([string]$ProxyUrl)
+    $parsed = $ProxyUrl -replace '^.*://', '' -split ':'
+    $host = $parsed[0]
+    $port = [int]$parsed[1]
+    try {
+        $client = New-Object System.Net.Sockets.TcpClient
+        $async = $client.BeginConnect($host, $port, $null, $null)
+        $reachable = $async.AsyncWaitHandle.WaitOne([TimeSpan]::FromSeconds(2))
+        if ($reachable) { $client.EndConnect($async) }
+        $client.Close()
+        return $reachable
+    } catch { return $false }
+}
+
 $proxy = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -ErrorAction SilentlyContinue
 
 if ($proxy -and $proxy.ProxyEnable -eq 1 -and $proxy.ProxyServer) {
@@ -24,18 +39,27 @@ if ($proxy -and $proxy.ProxyEnable -eq 1 -and $proxy.ProxyServer) {
         $proxyUrl = "http://$rawServer"
     }
 
-    $env:HTTP_PROXY  = $proxyUrl
-    $env:HTTPS_PROXY = $proxyUrl
-    $env:http_proxy  = $proxyUrl
-    $env:https_proxy = $proxyUrl
+    if ($proxyUrl -and (Test-ProxyReachable $proxyUrl)) {
+        $env:HTTP_PROXY  = $proxyUrl
+        $env:HTTPS_PROXY = $proxyUrl
+        $env:http_proxy  = $proxyUrl
+        $env:https_proxy = $proxyUrl
 
-    if ($proxy.ProxyOverride) {
-        $noProxy = $proxy.ProxyOverride -replace '<local>', '' -split ';' | Where-Object { $_.Trim() } | ForEach-Object { $_.Trim() }
-        $env:NO_PROXY = ($noProxy -join ',')
+        if ($proxy.ProxyOverride) {
+            $noProxy = $proxy.ProxyOverride -replace '<local>', '' -split ';' | Where-Object { $_.Trim() } | ForEach-Object { $_.Trim() }
+            $env:NO_PROXY = ($noProxy -join ',')
+        } else {
+            $env:NO_PROXY = "localhost,127.0.0.1"
+        }
+        $env:no_proxy = $env:NO_PROXY
     } else {
-        $env:NO_PROXY = "localhost,127.0.0.1"
+        Remove-Item Env:HTTP_PROXY  -ErrorAction SilentlyContinue
+        Remove-Item Env:HTTPS_PROXY -ErrorAction SilentlyContinue
+        Remove-Item Env:NO_PROXY    -ErrorAction SilentlyContinue
+        Remove-Item Env:http_proxy  -ErrorAction SilentlyContinue
+        Remove-Item Env:https_proxy -ErrorAction SilentlyContinue
+        Remove-Item Env:no_proxy    -ErrorAction SilentlyContinue
     }
-    $env:no_proxy = $env:NO_PROXY
 } else {
     Remove-Item Env:HTTP_PROXY  -ErrorAction SilentlyContinue
     Remove-Item Env:HTTPS_PROXY -ErrorAction SilentlyContinue
